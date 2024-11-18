@@ -73,9 +73,24 @@ def split_coco_annotations(coco_json_path, images_dir, output_dir, train_ratio=0
 
         print(f"{subset.capitalize()} set: {len(subset_images)} images")
 
+# Mapping explicite des classes
+class_mapping = {
+    1: 'line',
+    2: 'pathway',
+    3: 'roof_tuiles',
+    4: 'roof_beton',
+    5: 'sidewalk',
+    6: 'roof_ardoise',
+    7: 'solar_panel',
+    8: 'pool',
+    9: 'roof_autres',
+    10: 'parking',
+    11: 'green_space'
+}
+
 def create_category_mapping(coco_json_path):
     """
-    Crée un mapping de category_id COCO vers class_id séquentiels YOLO.
+    Crée un mapping de category_id COCO vers class_id basé sur le class_mapping fourni.
     """
     with open(coco_json_path, 'r') as f:
         coco = json.load(f)
@@ -84,16 +99,25 @@ def create_category_mapping(coco_json_path):
     if not categories:
         raise ValueError("Le fichier COCO annotations.json doit contenir 'categories'.")
 
-    # Créer un mapping de category_id à class_id
+    # Utiliser le class_mapping explicite
     category_id_map = {}
     category_names = []
-    for idx, cat in enumerate(categories):
-        cat_id = cat['id']
-        category_id_map[cat_id] = idx
-        category_names.append(cat['name'])
-        print(f"Mapping: COCO category_id '{cat_id}' --> YOLO class_id {idx}")
+    for category in categories:
+        cat_id = category['id']
+        cat_name = category['name']
+        
+        # Rechercher dans le class_mapping
+        for class_id, name in class_mapping.items():
+            if name == cat_name:
+                category_id_map[cat_id] = class_id - 1  # -1 pour l'indexation YOLO (commence à 0)
+                category_names.append(name)
+                break
+
+    if not category_id_map:
+        raise ValueError("Aucun mapping trouvé entre les catégories COCO et le class_mapping.")
 
     return category_id_map, category_names
+
 
 def split_annotations_segmentation(coco_json_path, output_labels_dir, category_id_map):
     """

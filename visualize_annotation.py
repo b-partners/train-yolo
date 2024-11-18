@@ -3,6 +3,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
+# Mapping des classes
+class_mapping = {
+    1: 'line',
+    2: 'pathway',
+    3: 'roof_tuiles',
+    4: 'roof_beton',
+    5: 'sidewalk',
+    6: 'roof_ardoise',
+    7: 'solar_panel',
+    8: 'pool',
+    9: 'roof_autres',
+    10: 'parking',
+    11: 'green_space'
+}
+
 def visualize_and_save_annotations(image_path, label_path, output_path):
     # Lire l'image
     image = cv2.imread(image_path)
@@ -31,6 +46,11 @@ def visualize_and_save_annotations(image_path, label_path, output_path):
             pts = np.array(polygon_points).reshape(-1, 2).astype(np.int32)
             cv2.polylines(image, [pts], isClosed=True, color=(255, 0, 0), thickness=2)
 
+            # Ajouter le nom du label sur l'image
+            label_name = class_mapping.get(class_id, 'Unknown')
+            text_position = (int(x_center - width / 2), int(y_center - height / 2))
+            cv2.putText(image, label_name, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+
     # Déterminer le chemin de sortie et sauvegarder l'image
     base_name = os.path.splitext(os.path.basename(image_path))[0]
     output_file_path = os.path.join(output_path, f"{base_name}_annotated.jpg")
@@ -52,7 +72,5 @@ def process_directory(images_dir, labels_dir, output_dir):
 process_directory(
     images_dir='dataset_split/val/images',
     labels_dir='dataset_split/val/labels',
-    output_dir='output_images/annotated'
+    output_dir='output_images/annotated2'
 )
-
-
