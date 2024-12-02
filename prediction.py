@@ -74,9 +74,9 @@ os.makedirs(output_dir, exist_ok=True)
 
 # Perform prediction
 results = model.predict(
-    source="dijon",  # Path to input images
+    source="beziers",  # Path to input images
     show_conf=True,  # Displays the confidence score for each detection
-    conf=80%,
+    conf=0.25,
     save=True        # Save visual results
 )
 
@@ -96,5 +96,5 @@ class_mapping = {
 }
 
 # Generate VGG JSON file
-output_vgg_file = os.path.join(output_dir, "vgg_annotations.json")
+output_vgg_file = os.path.join(output_dir, "beziers_vgg_annotations.json")
 yolo_results_to_vgg(results, class_mapping, output_vgg_file)
