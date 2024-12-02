@@ -2,7 +2,7 @@
 il faut uploader : yolo11n-seg.pt ou yolo8n-seg.pt 
 installer : ultralytics et pytorch 
 
-# ---- le train et la détection sont  établis sur 4 gpu
+# ---- le train se fait sur 4 gpu
 
 pour commencer : 
 1/ uploader votre dataset : train et val , dont la structure doit étre : 
