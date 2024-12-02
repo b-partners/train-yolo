@@ -104,6 +104,7 @@ def convert_to_yolo(json_file, img_dir, output_dir):
     return 0
 
 # Set the paths and run the function
+
 img_dir = "/Users/bparners/Desktop/dataset-yolo/dataset-final/val/images/"
 json_file = "/Users/bparners/Desktop/dataset-yolo/dataset-final/val/no-bg-vgg-annotation.json"
 output_dir = "/Users/bparners/Desktop/dataset-yolo/dataset-final/val/labels/"

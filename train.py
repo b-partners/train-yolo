@@ -17,8 +17,3 @@ results= model.train(data=f'data.yaml',epochs=300, imgsz=640, dropout= 0.4, devi
                     flipud= .35,
                     cache=True )
 
-"""# Load a model
-model = YOLO("runs/segment/train2/weights/best.pt")
-
-# Perform object detection on an image
-results = model("test_images", save=True)"""

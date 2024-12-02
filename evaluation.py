@@ -2,7 +2,7 @@ import os
 from ultralytics import YOLO
 
 # Charger un modèle YOLOv8 avec segmentation
-model = YOLO("runs/segment/train2/weights/best.pt")
+model = YOLO("best-weight-prediction/best.pt")
 """
 # Configurer et effectuer la validation
 validation_results = model.val(data="data.yaml",   # Chemin vers le fichier de configuration des données
@@ -13,7 +13,7 @@ validation_results = model.val(data="data.yaml",   # Chemin vers le fichier de c
 )"""
 
 # Validate the model
-metrics = model.val(data="data.yaml",conf=0.47)  
+metrics = model.val(data="data.yaml",conf=0.25)  
 
 metrics.box.maps
 
