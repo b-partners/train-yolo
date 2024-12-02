@@ -1,6 +1,11 @@
 import os
 import json
 from ultralytics import YOLO
+import cv2
+import glob
+
+# Set PyTorch CUDA allocation configuration
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 
 def yolo_results_to_vgg(results, class_mapping, output_file):
     """
@@ -37,7 +42,7 @@ def yolo_results_to_vgg(results, class_mapping, output_file):
         # Iterate over each detection
         region_index = 0
         for segment, cls, conf in zip(result.masks.xy, result.boxes.cls, result.boxes.conf):
-            cls_index = int(cls) + 1  # Adjusting YOLO class indices (YOLO starts from 0)
+            cls_index = int(cls)  # YOLO class indices start from 0
             label = class_mapping.get(cls_index, f"class_{cls_index}")
             confidence = float(conf)  # Convert confidence score to float
 
@@ -66,35 +71,64 @@ def yolo_results_to_vgg(results, class_mapping, output_file):
 
 
 # Load YOLOv8 model with segmentation
-model = YOLO("runs/segment/train2/weights/best.pt")
+model = YOLO("best-weight-prediction/best.pt")
 
 # Output directory for annotations
 output_dir = "runs/output_test_images"
 os.makedirs(output_dir, exist_ok=True)
 
-# Perform prediction
-results = model.predict(
-    source="beziers",  # Path to input images
-    show_conf=True,  # Displays the confidence score for each detection
-    conf=0.25,
-    save=True        # Save visual results
-)
+# Prepare the list of valid image files
+image_files = glob.glob('test/beziers/*.*')
+
+# Filter out non-image files or corrupted images
+valid_image_files = []
+for img_path in image_files:
+    try:
+        img = cv2.imread(img_path)
+        if img is not None:
+            valid_image_files.append(img_path)
+        else:
+            print(f"Invalid or corrupted image file: {img_path}. Skipping.")
+    except Exception as e:
+        print(f"Error reading image {img_path}: {e}. Skipping.")
+
+if not valid_image_files:
+    print("No valid images found in the directory.")
+    exit(1)
 
 # Class mapping (adjust according to your model)
 class_mapping = {
-    1: 'line',
-    2: 'pathway',
-    3: 'roof_tuiles',
-    4: 'roof_beton',
-    5: 'sidewalk',
-    6: 'roof_ardoise',
-    7: 'solar_panel',
-    8: 'pool',
-    9: 'roof_autres',
-    10: 'parking',
-    11: 'green_space'
+    0: 'line',
+    1: 'pathway',
+    2: 'roof_tuiles',
+    3: 'roof_beton',
+    4: 'sidewalk',
+    5: 'roof_ardoise',
+    6: 'solar_panel',
+    7: 'pool',
+    8: 'roof_autres',
+    9: 'parking',
+    10: 'green_space'
 }
+
+# Initialize an empty list to store all results
+all_results = []
+
+# Process images one at a time
+for img_path in valid_image_files:
+    try:
+        result = model.predict(
+            source=img_path,
+            show_conf=True,
+            conf=0.25,
+            save=True,
+            device=0
+        )
+        all_results.extend(result)
+    except Exception as e:
+        print(f"Error during model prediction for {img_path}: {e}")
+        continue
 
 # Generate VGG JSON file
 output_vgg_file = os.path.join(output_dir, "beziers_vgg_annotations.json")
-yolo_results_to_vgg(results, class_mapping, output_vgg_file)
+yolo_results_to_vgg(all_results, class_mapping, output_vgg_file)
