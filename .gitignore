@@ -1,0 +1,5 @@
+#data à ignorer 
+dataset/
+runs/
+test/
+best-weight-prediction/
