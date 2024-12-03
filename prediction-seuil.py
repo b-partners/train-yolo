@@ -1,0 +1,146 @@
+import os
+import json
+from ultralytics import YOLO
+import cv2
+import glob
+
+# Set PyTorch CUDA allocation configuration
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
+def yolo_results_to_vgg(results, class_mapping, class_thresholds, output_file):
+    """
+    Convert YOLOv8 segmentation results to VGG JSON format, filtering by confidence thresholds.
+
+    Args:
+        results (list): YOLOv8 results containing polygons, class information, and scores.
+        class_mapping (dict): Mapping of class indices to class labels.
+        class_thresholds (dict): Confidence thresholds for each class index.
+        output_file (str): Path to save the VGG JSON file.
+    """
+    vgg_data = {}
+
+    for result in results:
+        if not hasattr(result, "path") or not os.path.exists(result.path):
+            print(f"Warning: Missing or invalid path for result {result}. Skipping.")
+            continue
+
+        image_filename = os.path.basename(result.path)
+        vgg_entry = {
+            "fileref": "",
+            "size": os.path.getsize(result.path),
+            "filename": image_filename,
+            "base64_img_data": "",
+            "file_attributes": {},
+            "regions": {}
+        }
+
+        if result.masks is None or result.boxes is None:
+            print(f"No masks or boxes detected for image: {image_filename}.")
+            vgg_data[image_filename] = vgg_entry
+            continue
+
+        region_index = 0
+        for segment, cls, conf in zip(result.masks.xy, result.boxes.cls, result.boxes.conf):
+            cls_index = int(cls)  # YOLO class indices start from 0
+            confidence = float(conf)  # Convert confidence score to float
+
+            # Apply confidence threshold for the current class
+            threshold = class_thresholds.get(cls_index, 0.0)  # Default threshold is 0.0
+            if confidence < threshold:
+                continue
+
+            label = class_mapping.get(cls_index, f"class_{cls_index}")
+            all_points_x = segment[:, 0].tolist()
+            all_points_y = segment[:, 1].tolist()
+
+            vgg_entry["regions"][str(region_index)] = {
+                "shape_attributes": {
+                    "name": "polygon",
+                    "all_points_x": all_points_x,
+                    "all_points_y": all_points_y
+                },
+                "region_attributes": {
+                    "label": label,
+                    "confidence": confidence
+                }
+            }
+            region_index += 1
+
+        vgg_data[image_filename] = vgg_entry
+
+    # Save to output file
+    with open(output_file, "w") as json_file:
+        json.dump(vgg_data, json_file, indent=4)
+    print(f"VGG annotations with confidence thresholds saved to {output_file}")
+
+# Load YOLOv8 model with segmentation
+model = YOLO("best-weight-prediction/best.pt")
+
+# Output directory for annotations
+output_dir = "runs/output_test_images"
+os.makedirs(output_dir, exist_ok=True)
+
+# Prepare the list of valid image files
+image_files = glob.glob('dataset/val/images/*.*')
+
+valid_image_files = []
+for img_path in image_files:
+    try:
+        img = cv2.imread(img_path)
+        if img is not None:
+            valid_image_files.append(img_path)
+        else:
+            print(f"Invalid or corrupted image file: {img_path}. Skipping.")
+    except Exception as e:
+        print(f"Error reading image {img_path}: {e}. Skipping.")
+
+if not valid_image_files:
+    print("No valid images found in the directory.")
+    exit(1)
+
+class_mapping = {
+    0: 'line',
+    1: 'pathway',
+    2: 'roof_tuiles',
+    3: 'roof_beton',
+    4: 'sidewalk',
+    5: 'roof_ardoise',
+    6: 'solar_panel',
+    7: 'pool',
+    8: 'roof_autres',
+    9: 'parking',
+    10: 'green_space'
+}
+
+class_thresholds = {
+    0: 0.50,
+    1: 0.40,
+    2: 0.50,
+    3: 0.50,
+    4: 0.50,
+    5: 0.50,
+    6: 0.47,
+    7: 0.50,
+    8: 0.25,
+    9: 0.50,
+    10: 0.30
+}
+
+# Process images
+all_results = []
+for img_path in valid_image_files:
+    try:
+        result = model.predict(
+            source=img_path,
+            conf=0.25,  # Minimum general confidence threshold
+            save=True,
+            device=0
+        )
+        all_results.extend(result)
+    except Exception as e:
+        print(f"Error during model prediction for {img_path}: {e}")
+        continue
+
+# Generate VGG JSON file
+output_vgg_file = os.path.join(output_dir, "beziers_vgg_annotations.json")
+yolo_results_to_vgg(all_results, class_mapping, class_thresholds, output_vgg_file)
