@@ -1,0 +1,15 @@
+train: /mnt/batch/tasks/shared/LS_root/mounts/clusters/compute-v100-gpu/code/imagenet_segmentation/yolov8n_seg_custom-pondere/dataset-yolo/train
+val: /mnt/batch/tasks/shared/LS_root/mounts/clusters/compute-v100-gpu/code/imagenet_segmentation/yolov8n_seg_custom-pondere/dataset-yolo/val
+nc: 11
+names:
+- line
+- pathway
+- roof_tuiles
+- roof_beton
+- sidewalk
+- roof_ardoise
+- solar_panel
+- pool
+- roof_autres
+- parking
+- green_space

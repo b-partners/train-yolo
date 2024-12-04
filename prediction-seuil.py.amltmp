@@ -81,7 +81,7 @@ output_dir = "runs/output_test_images"
 os.makedirs(output_dir, exist_ok=True)
 
 # Prepare the list of valid image files
-image_files = glob.glob('dataset/val/images/*.*')
+image_files = glob.glob('test/beziers/*.*')
 
 valid_image_files = []
 for img_path in image_files:
@@ -142,5 +142,5 @@ for img_path in valid_image_files:
         continue
 
 # Generate VGG JSON file
-output_vgg_file = os.path.join(output_dir, "beziers_vgg_annotations.json")
+output_vgg_file = os.path.join(output_dir, "beziers_vgg_annotations_seuil_optimal.json")
 yolo_results_to_vgg(all_results, class_mapping, class_thresholds, output_vgg_file)

@@ -1,0 +1,211 @@
+import json
+import networkx as nx
+from shapely.geometry import Polygon, MultiPolygon
+from shapely.ops import unary_union
+from collections import defaultdict
+
+# Paramètres globaux
+TOLERANCE = 5.0  # Tolérance pour le lissage des contours
+AREA_THRESHOLD = 1000  # Seuil de surface pour supprimer les petits masques
+ROOF_CLASSES = ['roof_tuiles', 'roof_autres', 'roof_ardoise', 'roof_beton']#décommenter ligne 99 si nécéssaire
+
+def load_vgg_annotations(filepath):
+    """Charge les annotations VGG depuis un fichier JSON."""
+    with open(filepath, 'r') as f:
+        data = json.load(f)
+    return data
+
+def save_vgg_annotations(data, filepath):
+    """Enregistre les annotations VGG dans un fichier JSON."""
+    with open(filepath, 'w') as f:
+        json.dump(data, f)
+
+def merge_overlapping_masks(data):
+    """Fusionne les masques superposés de même classe dans les annotations VGG."""
+    for image_key, image_data in data.items():
+        regions = image_data.get('regions', {})
+        # Regrouper les régions par label (classe)
+        label_to_regions = defaultdict(list)
+        for region_id, region_data in regions.items():
+            label = region_data['region_attributes'].get('label')
+            if label:
+                label_to_regions[label].append((region_id, region_data))
+
+        new_regions = {}
+        region_count = 0
+        # Pour chaque label, traiter les régions correspondantes
+        for label, regions_list in label_to_regions.items():
+            # Créer des polygones à partir des régions
+            polygons = []
+            confidences = []
+            region_attrs_list = []
+            for idx, (region_id, region_data) in enumerate(regions_list):
+                shape_attr = region_data['shape_attributes']
+                if shape_attr['name'] == 'polygon':
+                    x_points = shape_attr['all_points_x']
+                    y_points = shape_attr['all_points_y']
+                    points = list(zip(x_points, y_points))
+                    polygon = Polygon(points)
+                    if not polygon.is_valid:
+                        polygon = polygon.buffer(0)  # Corriger les polygones invalides
+                    polygons.append(polygon)
+                    # Récupérer la confiance, en la convertissant en float
+                    confidence = float(region_data['region_attributes'].get('confidence', 0))
+                    confidences.append(confidence)
+                    region_attrs_list.append(region_data['region_attributes'])
+            # Construire un graphe des chevauchements
+            G = nx.Graph()
+            for idx1, poly1 in enumerate(polygons):
+                G.add_node(idx1)
+                for idx2 in range(idx1 + 1, len(polygons)):
+                    poly2 = polygons[idx2]
+                    if poly1.intersects(poly2):
+                        G.add_edge(idx1, idx2)
+            # Trouver les composantes connexes (groupes de polygones qui se chevauchent)
+            components = list(nx.connected_components(G))
+            # Traiter chaque composante
+            for component in components:
+                component_polygons = [polygons[idx] for idx in component]
+                # Fusionner les polygones dans la composante
+                merged_polygon = unary_union(component_polygons)
+                # Trouver le masque avec la confiance la plus élevée
+                max_confidence = -1
+                max_idx = None
+                for idx in component:
+                    conf = confidences[idx]
+                    if conf > max_confidence:
+                        max_confidence = conf
+                        max_idx = idx
+                # Obtenir les attributs du masque avec la plus haute confiance
+                max_region_attributes = region_attrs_list[max_idx]
+                # Gérer les MultiPolygons
+                if isinstance(merged_polygon, MultiPolygon):
+                    polys = merged_polygon.geoms
+                else:
+                    polys = [merged_polygon]
+                for poly in polys:
+                    if poly.is_empty:
+                        continue
+                    x, y = poly.exterior.coords.xy
+                    all_points_x = list(x)
+                    all_points_y = list(y)
+                    shape_attributes = {
+                        'name': 'polygon',
+                        'all_points_x': all_points_x,
+                        'all_points_y': all_points_y
+                    }
+                    if label in ROOF_CLASSES:
+                        # Pour les classes spécifiques, conserver les attributs du masque avec la plus haute confiance
+                        #region_attributes = max_region_attributes.copy()
+                        continue
+                    else:
+                        # Pour les autres classes, vous pouvez décider quels attributs conserver
+                        region_attributes = {
+                            'label': label
+                            # Copier d'autres attributs si nécessaire
+                        }
+                    new_region = {
+                        'shape_attributes': shape_attributes,
+                        'region_attributes': region_attributes
+                    }
+                    new_regions[str(region_count)] = new_region
+                    region_count += 1
+            # Fin de la boucle sur les composantes
+        # Mettre à jour les régions de l'image avec les nouvelles régions fusionnées
+        image_data['regions'] = new_regions
+    return data
+
+def post_process_masks(data, tolerance=TOLERANCE, area_threshold=AREA_THRESHOLD):
+    """Effectue le post-traitement des masques : lissage, remplissage des trous, suppression des petits masques."""
+    for image_key, image_data in data.items():
+        regions = image_data.get('regions', {})
+        # Regrouper les régions par label (classe)
+        label_to_regions = defaultdict(list)
+        for region_id, region_data in regions.items():
+            label = region_data['region_attributes'].get('label')
+            if label:
+                label_to_regions[label].append((region_id, region_data))
+
+        new_regions = {}
+        region_count = 0
+        # Pour chaque label, traiter les régions correspondantes
+        for label, regions_list in label_to_regions.items():
+            # Créer des polygones à partir des régions
+            polygons = []
+            region_attrs_list = []
+            for idx, (region_id, region_data) in enumerate(regions_list):
+                shape_attr = region_data['shape_attributes']
+                if shape_attr['name'] == 'polygon':
+                    x_points = shape_attr['all_points_x']
+                    y_points = shape_attr['all_points_y']
+                    points = list(zip(x_points, y_points))
+                    polygon = Polygon(points)
+                    if not polygon.is_valid:
+                        polygon = polygon.buffer(0)  # Corriger les polygones invalides
+                    polygons.append(polygon)
+                    region_attrs_list.append(region_data['region_attributes'])
+            # Fusionner tous les polygones de la même classe (si nécessaire)
+            merged_polygon = unary_union(polygons)
+            # Gérer les MultiPolygons
+            if isinstance(merged_polygon, MultiPolygon):
+                polys = merged_polygon.geoms
+            else:
+                polys = [merged_polygon]
+            for poly in polys:
+                if poly.is_empty:
+                    continue
+                # Supprimer les masques de petite taille
+                if poly.area < area_threshold:
+                    continue
+                # Remplir les trous dans le polygone
+                poly = Polygon(poly.exterior)
+                # Lisser les contours du polygone
+                poly = poly.simplify(tolerance, preserve_topology=True)
+                # Vérifier si le polygone est valide après simplification
+                if not poly.is_valid or poly.is_empty:
+                    continue
+                x, y = poly.exterior.coords.xy
+                all_points_x = list(x)
+                all_points_y = list(y)
+                shape_attributes = {
+                    'name': 'polygon',
+                    'all_points_x': all_points_x,
+                    'all_points_y': all_points_y
+                }
+                # Vous pouvez choisir quel attribut conserver ou fusionner
+                region_attributes = {
+                    'label': label
+                    # Copier d'autres attributs si nécessaire
+                }
+                new_region = {
+                    'shape_attributes': shape_attributes,
+                    'region_attributes': region_attributes
+                }
+                new_regions[str(region_count)] = new_region
+                region_count += 1
+            # Fin de la boucle sur les régions
+        # Mettre à jour les régions de l'image avec les nouvelles régions post-traitées
+        image_data['regions'] = new_regions
+    return data
+
+"""def main():
+    # Chemins des fichiers
+    input_filepath = 'runs/output_test_images/beziers_vgg_annotations.json'
+    output_filepath = 'runs/output_test_images/beziers_vgg_annotations_post_trait.json'
+
+    # Charger les annotations VGG
+    data = load_vgg_annotations(input_filepath)
+
+    # Fusionner les masques superposés de même classe
+    data = merge_overlapping_masks(data)
+
+    # Effectuer le post-traitement des masques
+    data = post_process_masks(data)
+
+    # Enregistrer les annotations mises à jour
+    save_vgg_annotations(data, output_filepath)
+
+    print("Traitement terminé. Les annotations mises à jour ont été enregistrées dans :", output_filepath)
+
+if __name__ == "__main__":
+    main()"""

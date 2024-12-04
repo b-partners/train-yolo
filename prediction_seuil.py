@@ -20,7 +20,6 @@ os.makedirs(output_dir, exist_ok=True)
 # Prepare the list of valid image files
 image_files = glob.glob('test/beziers/*.*')
 
-# Filter out non-image files or corrupted images
 valid_image_files = []
 for img_path in image_files:
     try:
@@ -36,7 +35,6 @@ if not valid_image_files:
     print("No valid images found in the directory.")
     exit(1)
 
-# Class mapping (adjust according to your model)
 class_mapping = {
     0: 'line',
     1: 'pathway',
@@ -51,16 +49,27 @@ class_mapping = {
     10: 'green_space'
 }
 
-# Initialize an empty list to store all results
-all_results = []
+class_thresholds = {
+    0: 0.50,
+    1: 0.40,
+    2: 0.50,
+    3: 0.50,
+    4: 0.50,
+    5: 0.50,
+    6: 0.47,
+    7: 0.50,
+    8: 0.25,
+    9: 0.50,
+    10: 0.30
+}
 
-# Process images one at a time
+# Process images
+all_results = []
 for img_path in valid_image_files:
     try:
         result = model.predict(
             source=img_path,
-            show_conf=True,
-            conf=0.25,
+            conf=0.25,  # Minimum general confidence threshold
             save=True,
             device=0
         )
@@ -73,6 +82,7 @@ for img_path in valid_image_files:
 output_vgg_file = os.path.join(output_dir, "beziers_vgg_annotations.json")
 yolo_results_to_vgg(all_results, class_mapping, output_vgg_file)
 
+
 #post-traitement des prédictions 
 # Charger les annotations VGG générées
 data = load_vgg_annotations(output_vgg_file)
@@ -80,17 +90,20 @@ data = load_vgg_annotations(output_vgg_file)
 # Fusionner les masques superposés de même classe
 data = merge_overlapping_masks(data)
 
+# Filtrer les annotations par seuil de confiance
+data = filter_by_confidence(data, class_thresholds)
+
+
 # Effectuer le post-traitement des masques (lissage, suppression des petits masques, etc.)
 data = post_process_masks(data)
 
 # Enregistrer les annotations post-traitées dans un nouveau fichier JSON
-post_processed_file = os.path.join(output_dir, "beziers_vgg_annotations_post_trait.json")
+post_processed_file = os.path.join(output_dir, "beziers_vgg_annotations_post_traits_seuil_optimal.json")
 save_vgg_annotations(data, post_processed_file)
 
 print(f"Post-traitement terminé. Fichier enregistré dans : {post_processed_file}")
 
 #convert vgg to coco 
 
-coco_json_path = os.path.join(output_dir,'beziers_coco_annotations.json')
+coco_json_path = os.path.join(output_dir,'beziers_coco_annotations_with_post_processing_with_seuil_optimal2.json')
 convert_vgg_to_coco(post_processed_file, coco_json_path)
-
