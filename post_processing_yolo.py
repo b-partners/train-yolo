@@ -123,6 +123,8 @@ def merge_overlapping_masks(data):
 
     return data
 
+
+
 def post_process_masks(data, tolerance=TOLERANCE, area_threshold=AREA_THRESHOLD):
     """Effectue le post-traitement des masques : lissage, remplissage des trous, suppression des petits masques."""
     for image_key, image_data in data.items():
@@ -133,11 +135,11 @@ def post_process_masks(data, tolerance=TOLERANCE, area_threshold=AREA_THRESHOLD)
         for region_id, region_data in regions.items():
             label = region_data['region_attributes'].get('label')
             # Ne pas traiter les classes exclues
-            if label in EXCLUDED_CLASSES:
+            """if label in EXCLUDED_CLASSES:
                 new_regions[str(region_count)] = region_data
                 region_count += 1
-                continue
-
+                continue    
+            """
             # Lissage et suppression des petits masques
             shape_attr = region_data['shape_attributes']
             if shape_attr['name'] == 'polygon':
@@ -153,6 +155,16 @@ def post_process_masks(data, tolerance=TOLERANCE, area_threshold=AREA_THRESHOLD)
                 if not polygon.is_valid or polygon.is_empty:
                     continue
 
+                # Gérer les MultiPolygons
+                if isinstance(polygon, MultiPolygon):
+                    # Fusionner les polygones dans un seul (union) ou sélectionner le plus grand
+                    polygons = list(polygon.geoms)  # Extraire les polygones individuels
+                    polygon = max(polygons, key=lambda p: p.area)  # Sélectionner le plus grand polygone
+
+                if not polygon.is_valid or polygon.is_empty:
+                    continue
+
+                # Extraire les coordonnées du polygone
                 x, y = polygon.exterior.coords.xy
                 shape_attributes = {
                     'name': 'polygon',
@@ -195,7 +207,7 @@ def filter_by_confidence(data, class_thresholds, default_threshold=0.0):
                 class_index = int(label)  # Si le label est un index numérique
             except ValueError:
                 # Si le label n'est pas un index valide, ignorer l'annotation
-                print(f"Annotation ignorée pour label non valide : {label}")
+                #print(f"Annotation ignorée pour label non valide : {label}")
                 continue
 
             # Obtenir le seuil pour la classe ou utiliser le seuil par défaut

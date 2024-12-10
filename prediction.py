@@ -18,7 +18,7 @@ output_dir = "runs/output_test_images"
 os.makedirs(output_dir, exist_ok=True)
 
 # Prepare the list of valid image files
-image_files = glob.glob('test/beziers/*.*')
+image_files = glob.glob('test/dijon/images/*.*')
 
 # Filter out non-image files or corrupted images
 valid_image_files = []
@@ -70,27 +70,29 @@ for img_path in valid_image_files:
         continue
 
 # Generate VGG JSON file
-output_vgg_file = os.path.join(output_dir, "beziers_vgg_annotations.json")
+output_vgg_file = os.path.join(output_dir, "dijon_vgg_annotations.json")
 yolo_results_to_vgg(all_results, class_mapping, output_vgg_file)
 
 #post-traitement des prédictions 
 # Charger les annotations VGG générées
-data = load_vgg_annotations(output_vgg_file)
+#data = load_vgg_annotations(output_vgg_file)
+
 
 # Fusionner les masques superposés de même classe
-data = merge_overlapping_masks(data)
+#data = merge_overlapping_masks(data)
 
 # Effectuer le post-traitement des masques (lissage, suppression des petits masques, etc.)
-data = post_process_masks(data)
+#data = post_process_masks(data)
+
 
 # Enregistrer les annotations post-traitées dans un nouveau fichier JSON
-post_processed_file = os.path.join(output_dir, "beziers_vgg_annotations_post_trait.json")
-save_vgg_annotations(data, post_processed_file)
+#post_processed_file = os.path.join(output_dir, "dijon_vgg_annotations_post_trait.json")
+#save_vgg_annotations(data, post_processed_file)
 
-print(f"Post-traitement terminé. Fichier enregistré dans : {post_processed_file}")
+#print(f"Post-traitement terminé. Fichier enregistré dans : {post_processed_file}")
 
 #convert vgg to coco 
 
-coco_json_path = os.path.join(output_dir,'beziers_coco_annotations.json')
-convert_vgg_to_coco(post_processed_file, coco_json_path)
+coco_json_path = os.path.join(output_dir,'dijon_coco_annotations.json')
+convert_vgg_to_coco(output_vgg_file, coco_json_path)
 

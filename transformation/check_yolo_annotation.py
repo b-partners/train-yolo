@@ -75,8 +75,10 @@ def process_directory(images_dir, labels_dir, output_dir):
             visualize_and_save_annotations(image_path, label_path, output_dir)
 
 # Exemple d'utilisation
+output_dir='augmented_dataset/'
+
 process_directory(
-    images_dir='/Users/bparners/Desktop/dataset-yolo/dataset-final/val/images',
-    labels_dir='/Users/bparners/Desktop/dataset-yolo/dataset-final/val/labels/',
-    output_dir='/Users/bparners/Desktop/dataset-yolo/dataset-final/val/yolo_annotations-images'
+    images_dir='images/',
+    labels_dir='labels/',
+    output_dir='train-images-check'
 )

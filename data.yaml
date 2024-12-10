@@ -1,5 +1,5 @@
-train: /mnt/batch/tasks/shared/LS_root/mounts/clusters/compute-v100-gpu/code/imagenet_segmentation/yolov8n_seg_custom-pondere/dataset-yolo/train
-val: /mnt/batch/tasks/shared/LS_root/mounts/clusters/compute-v100-gpu/code/imagenet_segmentation/yolov8n_seg_custom-pondere/dataset-yolo/val
+train: /mnt/batch/tasks/shared/LS_root/mounts/clusters/compute-v100-gpu/code/yolo-segmentation/train-yolo/dataset/train-augment
+val: /mnt/batch/tasks/shared/LS_root/mounts/clusters/compute-v100-gpu/code/yolo-segmentation/train-yolo/test/dijon
 nc: 11
 names:
 - line

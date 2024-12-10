@@ -87,6 +87,9 @@ yolo_results_to_vgg(all_results, class_mapping, output_vgg_file)
 # Charger les annotations VGG générées
 data = load_vgg_annotations(output_vgg_file)
 
+# Effectuer le post-traitement des masques (lissage, suppression des petits masques, etc.)
+data = post_process_masks(data)
+
 # Fusionner les masques superposés de même classe
 data = merge_overlapping_masks(data)
 
@@ -94,8 +97,6 @@ data = merge_overlapping_masks(data)
 data = filter_by_confidence(data, class_thresholds)
 
 
-# Effectuer le post-traitement des masques (lissage, suppression des petits masques, etc.)
-data = post_process_masks(data)
 
 # Enregistrer les annotations post-traitées dans un nouveau fichier JSON
 post_processed_file = os.path.join(output_dir, "beziers_vgg_annotations_post_traits_seuil_optimal.json")
@@ -105,5 +106,5 @@ print(f"Post-traitement terminé. Fichier enregistré dans : {post_processed_fil
 
 #convert vgg to coco 
 
-coco_json_path = os.path.join(output_dir,'beziers_coco_annotations_with_post_processing_with_seuil_optimal2.json')
+coco_json_path = os.path.join(output_dir,'beziers_coco_annotations_post_traits_seuil_optimal.json')
 convert_vgg_to_coco(post_processed_file, coco_json_path)

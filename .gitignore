@@ -3,3 +3,4 @@ dataset/
 runs/
 test/
 best-weight-prediction/
+yolo11x-seg.pt
